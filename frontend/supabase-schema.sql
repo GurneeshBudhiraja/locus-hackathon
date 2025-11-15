@@ -6,6 +6,7 @@ CREATE TABLE public.contractors (
   github_login character varying NOT NULL,
   person_name character varying NOT NULL,
   repo_name character varying NOT NULL,
+  repo_owner character varying NOT NULL,
   wallet_address character varying NOT NULL,
   role character varying NOT NULL,
   track_prs boolean DEFAULT false,

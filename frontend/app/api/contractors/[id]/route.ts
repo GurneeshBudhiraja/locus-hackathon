@@ -51,6 +51,7 @@ export async function PUT(
     if (body.githubLogin !== undefined) updateData.github_login = body.githubLogin
     if (body.personName !== undefined) updateData.person_name = body.personName
     if (body.repoName !== undefined) updateData.repo_name = body.repoName
+    if (body.repoOwner !== undefined) updateData.repo_owner = body.repoOwner
     if (body.walletAddress !== undefined) updateData.wallet_address = body.walletAddress
     if (body.role !== undefined) updateData.role = body.role
     if (body.trackPRs !== undefined) updateData.track_prs = body.trackPRs

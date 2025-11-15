@@ -31,7 +31,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
 
     // Validate required fields
-    const requiredFields = ['githubLogin', 'personName', 'repoName', 'walletAddress', 'role', 'totalAmountPayable']
+    const requiredFields = ['githubLogin', 'personName', 'repoName', 'repoOwner', 'walletAddress', 'role', 'totalAmountPayable']
     const missingFields = requiredFields.filter(field => !body[field])
 
     if (missingFields.length > 0) {
@@ -48,6 +48,7 @@ export async function POST(request: NextRequest) {
           github_login: body.githubLogin,
           person_name: body.personName,
           repo_name: body.repoName,
+          repo_owner: body.repoOwner,
           wallet_address: body.walletAddress,
           role: body.role,
           track_prs: body.trackPRs || false,

@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -10,6 +11,7 @@ const contractorSchema = z.object({
   githubLogin: z.string().min(1, 'GitHub login is required'),
   personName: z.string().min(1, 'Person name is required'),
   repoName: z.string().min(1, 'Repository name is required'),
+  repoOwner: z.string().min(1, 'Repository owner is required'),
   walletAddress: z.string().min(1, 'Wallet address is required'),
   role: z.string().min(1, 'Role is required'),
   trackPRs: z.boolean(),
@@ -22,6 +24,7 @@ const contractorSchema = z.object({
 type ContractorFormData = z.infer<typeof contractorSchema>
 
 export default function ContractorForm() {
+  const router = useRouter()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitSuccess, setSubmitSuccess] = useState(false)
   const [metorialSessionId, setMetorialSessionId] = useState('')
@@ -124,13 +127,14 @@ export default function ContractorForm() {
     setSubmitSuccess(false)
 
     try {
-      const { error } = await supabase
+      const { data: insertedData, error } = await supabase
         .from('contractors')
         .insert([
           {
             github_login: data.githubLogin,
             person_name: data.personName,
             repo_name: data.repoName,
+            repo_owner: data.repoOwner,
             wallet_address: data.walletAddress,
             role: data.role,
             track_prs: data.trackPRs,
@@ -138,6 +142,8 @@ export default function ContractorForm() {
             metorial_oauth_session_id: metorialSessionId || null,
           },
         ])
+        .select()
+        .single()
 
       if (error) {
         throw error
@@ -147,8 +153,14 @@ export default function ContractorForm() {
       setMetorialSessionId('') // Clear session ID after successful submit
       reset()
 
-      // Reset success message after 3 seconds
-      setTimeout(() => setSubmitSuccess(false), 3000)
+      // Redirect to dashboard with contractor ID after 1 second
+      setTimeout(() => {
+        if (insertedData?.id) {
+          router.push(`/dashboard?contractorId=${insertedData.id}`)
+        } else {
+          router.push('/dashboard')
+        }
+      }, 1000)
     } catch (error: any) {
       console.error('Error submitting form:', error)
       alert(`Error: ${error.message || 'Failed to submit contractor information'}`)
@@ -160,41 +172,52 @@ export default function ContractorForm() {
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
-        {/* GitHub Login */}
+        {/* Contractor GitHub Username */}
         <div>
           <label
             htmlFor="githubLogin"
             className="block text-sm font-medium text-gray-700 mb-2"
           >
-            GitHub Login <span className="text-red-500">*</span>
+            Contractor GitHub Username <span className="text-red-500">*</span>
           </label>
-          <div className="space-y-2">
-            <div className="flex items-center gap-2">
-              <input
-                type="text"
-                id="githubLogin"
-                {...register('githubLogin')}
-                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                placeholder="e.g., johndoe"
-              />
-              <button
-                type="button"
-                onClick={handleGitHubOAuth}
-                disabled={isAuthenticating}
-                className="px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm whitespace-nowrap"
-              >
-                {isAuthenticating ? 'Authenticating...' : 'OAuth'}
-              </button>
-            </div>
-            {metorialSessionId && (
-              <p className="text-xs text-green-600">
-                ✓ OAuth session ID: {metorialSessionId.substring(0, 20)}...
-              </p>
-            )}
-          </div>
+          <input
+            type="text"
+            id="githubLogin"
+            {...register('githubLogin')}
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+            placeholder="e.g., johndoe"
+          />
+          <p className="mt-1 text-xs text-gray-500">
+            The GitHub username of the contractor (person being paid)
+          </p>
           {errors.githubLogin && (
             <p className="mt-1 text-sm text-red-600">{errors.githubLogin.message}</p>
           )}
+        </div>
+
+        {/* Admin GitHub Connection (for repo access) */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Admin GitHub Connection <span className="text-red-500">*</span>
+          </label>
+          <div className="space-y-2">
+            <button
+              type="button"
+              onClick={handleGitHubOAuth}
+              disabled={isAuthenticating}
+              className="w-full px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              {isAuthenticating ? 'Connecting...' : 'Connect Admin GitHub Account'}
+            </button>
+            {metorialSessionId && (
+              <p className="text-xs text-green-600">
+                ✓ Admin GitHub connected! Session ID: {metorialSessionId.substring(0, 20)}...
+              </p>
+            )}
+            <p className="text-xs text-gray-500">
+              Connect the admin's GitHub account (must have access to the repository above)
+            </p>
+          </div>
         </div>
 
         {/* Person Name */}
@@ -234,6 +257,26 @@ export default function ContractorForm() {
           />
           {errors.repoName && (
             <p className="mt-1 text-sm text-red-600">{errors.repoName.message}</p>
+          )}
+        </div>
+
+        {/* Repository Owner */}
+        <div>
+          <label
+            htmlFor="repoOwner"
+            className="block text-sm font-medium text-gray-700 mb-2"
+          >
+            Repository Owner <span className="text-red-500">*</span>
+          </label>
+          <input
+            type="text"
+            id="repoOwner"
+            {...register('repoOwner')}
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+            placeholder="e.g., facebook"
+          />
+          {errors.repoOwner && (
+            <p className="mt-1 text-sm text-red-600">{errors.repoOwner.message}</p>
           )}
         </div>
 
