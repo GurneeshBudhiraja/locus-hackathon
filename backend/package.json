@@ -22,6 +22,7 @@
     "express": "^4.21.2",
     "metorial": "^1.0.3",
     "openai": "^4.104.0",
+    "@supabase/supabase-js": "^2.39.0",
     "zod": "^3.25.76"
   },
   "devDependencies": {
