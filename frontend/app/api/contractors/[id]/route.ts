@@ -57,6 +57,9 @@ export async function PUT(
     if (body.totalAmountPayable !== undefined) {
       updateData.total_amount_payable = parseFloat(body.totalAmountPayable)
     }
+    if (body.metorialOAuthSessionId !== undefined) {
+      updateData.metorial_oauth_session_id = body.metorialOAuthSessionId
+    }
 
     if (Object.keys(updateData).length === 0) {
       return NextResponse.json(

@@ -24,6 +24,8 @@ type ContractorFormData = z.infer<typeof contractorSchema>
 export default function ContractorForm() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitSuccess, setSubmitSuccess] = useState(false)
+  const [metorialSessionId, setMetorialSessionId] = useState('')
+  const [isAuthenticating, setIsAuthenticating] = useState(false)
 
   const {
     register,
@@ -34,8 +36,88 @@ export default function ContractorForm() {
     resolver: zodResolver(contractorSchema),
     defaultValues: {
       trackPRs: false,
+      githubLogin: '',
     },
   })
+
+  const handleGitHubOAuth = async () => {
+    setIsAuthenticating(true)
+    try {
+      const response = await fetch('/api/github-oauth', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'create' }),
+      })
+
+      const data = await response.json()
+      if (data.url && data.oauthSessionId) {
+        setMetorialSessionId(data.oauthSessionId)
+        // Open OAuth URL in a new tab
+        window.open(data.url, '_blank')
+        
+        // Poll for OAuth completion
+        pollOAuthCompletion(data.oauthSessionId)
+      } else {
+        throw new Error(data.error || 'Failed to create OAuth session')
+      }
+    } catch (error: any) {
+      console.error('OAuth error:', error)
+      alert(`Error: ${error.message || 'Failed to start GitHub OAuth'}`)
+      setIsAuthenticating(false)
+    }
+  }
+
+  const pollOAuthCompletion = async (sessionId: string) => {
+    const maxAttempts = 120
+    let attempts = 0
+
+    const poll = async () => {
+      try {
+        const response = await fetch('/api/github-oauth', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'wait', oauthSessionId: sessionId }),
+        })
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`)
+        }
+
+        const data = await response.json()
+        
+        if (data.completed) {
+          setIsAuthenticating(false)
+          // Session ID is already stored in state, OAuth is complete
+          alert('GitHub OAuth completed! Session ID saved. Please enter your GitHub username manually.')
+        } else if (data.completed === false) {
+          if (attempts < maxAttempts) {
+            attempts++
+            setTimeout(poll, 3000)
+          } else {
+            setIsAuthenticating(false)
+            alert('OAuth timeout. Please try again.')
+          }
+        } else if (attempts < maxAttempts) {
+          attempts++
+          setTimeout(poll, 3000)
+        } else {
+          setIsAuthenticating(false)
+          alert('OAuth timeout. Please try again.')
+        }
+      } catch (error: any) {
+        console.error('Polling error:', error)
+        if (attempts < maxAttempts) {
+          attempts++
+          setTimeout(poll, 3000)
+        } else {
+          setIsAuthenticating(false)
+          alert(`OAuth error: ${error.message || 'Please try again.'}`)
+        }
+      }
+    }
+
+    poll()
+  }
 
   const onSubmit = async (data: ContractorFormData) => {
     setIsSubmitting(true)
@@ -53,6 +135,7 @@ export default function ContractorForm() {
             role: data.role,
             track_prs: data.trackPRs,
             total_amount_payable: parseFloat(data.totalAmountPayable),
+            metorial_oauth_session_id: metorialSessionId || null,
           },
         ])
 
@@ -61,6 +144,7 @@ export default function ContractorForm() {
       }
 
       setSubmitSuccess(true)
+      setMetorialSessionId('') // Clear session ID after successful submit
       reset()
 
       // Reset success message after 3 seconds
@@ -84,13 +168,30 @@ export default function ContractorForm() {
           >
             GitHub Login <span className="text-red-500">*</span>
           </label>
-          <input
-            type="text"
-            id="githubLogin"
-            {...register('githubLogin')}
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-            placeholder="e.g., johndoe"
-          />
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                id="githubLogin"
+                {...register('githubLogin')}
+                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                placeholder="e.g., johndoe"
+              />
+              <button
+                type="button"
+                onClick={handleGitHubOAuth}
+                disabled={isAuthenticating}
+                className="px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm whitespace-nowrap"
+              >
+                {isAuthenticating ? 'Authenticating...' : 'OAuth'}
+              </button>
+            </div>
+            {metorialSessionId && (
+              <p className="text-xs text-green-600">
+                ✓ OAuth session ID: {metorialSessionId.substring(0, 20)}...
+              </p>
+            )}
+          </div>
           {errors.githubLogin && (
             <p className="mt-1 text-sm text-red-600">{errors.githubLogin.message}</p>
           )}

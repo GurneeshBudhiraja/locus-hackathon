@@ -52,6 +52,7 @@ export async function POST(request: NextRequest) {
           role: body.role,
           track_prs: body.trackPRs || false,
           total_amount_payable: parseFloat(body.totalAmountPayable),
+          metorial_oauth_session_id: body.metorialOAuthSessionId || null,
         },
       ])
       .select()

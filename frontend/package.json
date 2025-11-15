@@ -15,7 +15,9 @@
     "react-hook-form": "^7.51.5",
     "zod": "^3.23.8",
     "@hookform/resolvers": "^3.3.4",
-    "@supabase/supabase-js": "^2.39.3"
+    "@supabase/supabase-js": "^2.39.3",
+    "metorial": "^1.0.0",
+    "@anthropic-ai/sdk": "^0.24.3"
   },
   "devDependencies": {
     "@types/node": "^20.14.10",
